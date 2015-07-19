@@ -9,8 +9,8 @@
 import Foundation
 import CoreBluetooth
 
-
 class BTService: NSObject, CBPeripheralDelegate {
+  
   var peripheral: CBPeripheral?
   var recieverCharacteristic: CBCharacteristic?
   
@@ -22,7 +22,7 @@ class BTService: NSObject, CBPeripheralDelegate {
   }
   
   deinit {
-    self.reset()
+    reset()
   }
   
   func startDiscoveringServices() {
@@ -33,15 +33,11 @@ class BTService: NSObject, CBPeripheralDelegate {
     if peripheral != nil {
       peripheral = nil
     }
-    
-    // Deallocating therefore send notification
-    self.sendBTServiceNotificationWithIsBluetoothConnected(false)
   }
   
   // Mark: - CBPeripheralDelegate
   
   func peripheral(peripheral: CBPeripheral!, didDiscoverServices error: NSError!) {
-    //    let uuidsForBTService: [CBUUID] = [PositionCharUUID]
     
     if (peripheral != self.peripheral) {
       logger.error("Wrong Peripheral")
@@ -49,6 +45,7 @@ class BTService: NSObject, CBPeripheralDelegate {
     }
     
     if (error != nil) {
+      logger.error("peripheral:didDiscoverServices error: \(error)")
       return
     }
     
@@ -66,7 +63,7 @@ class BTService: NSObject, CBPeripheralDelegate {
       if service.UUID == BLEServiceUUID {
         logger.verbose("matching BLE service")
         //        peripheral.discoverCharacteristics(uuidsForBTService, forService: service as CBService)
-        peripheral.discoverCharacteristics(nil, forService: service as CBService)
+        peripheral.discoverCharacteristics(nil, forService: service as! CBService)
       }
     }
   }
@@ -84,31 +81,23 @@ class BTService: NSObject, CBPeripheralDelegate {
     logger.verbose(">> didDiscoversCharacteristics")
     for characteristic in service.characteristics {
       if characteristic.UUID == BLECharacteristicsUUID {
-        recieverCharacteristic = (characteristic as CBCharacteristic)
-        peripheral.setNotifyValue(true, forCharacteristic: characteristic as CBCharacteristic)
+        recieverCharacteristic = (characteristic as! CBCharacteristic)
+        peripheral.setNotifyValue(true, forCharacteristic: characteristic as! CBCharacteristic)
 
         logger.verbose("matching characteristics")
-        
-        // Send notification that Bluetooth is connected and all required characteristics are discovered
-        sendBTServiceNotificationWithIsBluetoothConnected(true)
       }
     }
   }
   
   func peripheral(peripheral: CBPeripheral!, didUpdateValueForCharacteristic characteristic: CBCharacteristic!, error: NSError!) {
   
-//    if (!Sensor.isSensorActive(DxtrModel.sharedInstance.managedObjectContext!)) {
-//      // we have no active sensor -> do nothing
-//      return
-//    }
-    
     if (characteristic != recieverCharacteristic) {
       logger.error("Wrong Characteristcs")
       return
     }
 
     if (error != nil) {
-      logger.error("\(error.description)")
+      logger.error("peripheral:didUpdateValueForCharacteristic error: \(error)")
       return
     }
     
@@ -121,6 +110,7 @@ class BTService: NSObject, CBPeripheralDelegate {
     }
     
     if let datastring = NSString(data:characteristic.value, encoding: NSUTF8StringEncoding) {
+      
       // data array should look like this if complete
       // [0] sensor raw data
       // [1] battery level of the sensor
@@ -130,8 +120,8 @@ class BTService: NSObject, CBPeripheralDelegate {
       // [1] battery level of the wixel HW
       
       // split the datastring
-      var data_components = datastring.componentsSeparatedByCharactersInSet(NSCharacterSet.whitespaceCharacterSet()) as [String]
-      data_components = data_components.filter { countElements($0) > 0 }
+      var data_components = datastring.componentsSeparatedByCharactersInSet(NSCharacterSet.whitespaceCharacterSet()) as! [String]
+      data_components = data_components.filter { count($0) > 0 }
       
       fileLog.debug("\(data_components)")
 
@@ -139,18 +129,17 @@ class BTService: NSObject, CBPeripheralDelegate {
       // their are 3 elements in the data array
       if data_components.count > 2 {
         // Create the database object
-        var transmitterData = TransmitterData(managedObjectContext: DxtrModel.sharedInstance.managedObjectContext!)
-        transmitterData.rawData = NSNumber(double: (data_components[0] as NSString).doubleValue)
+        var transmitterData = TransmitterData(managedObjectContext: DxtrModel.sharedInstance.managedObjectContext!, rawData: (data_components[0] as NSString).doubleValue)
         transmitterData.sensorBatteryLevel = NSNumber(int:(data_components[1] as NSString).intValue)
         transmitterData.sendTDNewValueNotificcation()
       } else {
         if ((data_components[0] as NSString).intValue < 1000) {
-          logger.warning("we recieved only a batterie reading")
+          logger.warning("we recieved only a battery reading")
           return
         } else {
           // Create the database object
-          var transmitterData = TransmitterData(managedObjectContext: DxtrModel.sharedInstance.managedObjectContext!)
-          transmitterData.rawData = NSNumber(double:(data_components[0] as NSString).doubleValue)
+          let rv = (data_components[0] as NSString).doubleValue
+          var transmitterData = TransmitterData(managedObjectContext: DxtrModel.sharedInstance.managedObjectContext!, rawData: (data_components[0] as NSString).doubleValue)
           transmitterData.sendTDNewValueNotificcation()
         }
       }
@@ -163,11 +152,6 @@ class BTService: NSObject, CBPeripheralDelegate {
     }
     
     
-  }
-  
-  func sendBTServiceNotificationWithIsBluetoothConnected(isBluetoothConnected: Bool) {
-    let connectionDetails = ["isConnected": isBluetoothConnected]
-    NSNotificationCenter.defaultCenter().postNotificationName(BLEServiceChangedStatusNotification, object: self, userInfo: connectionDetails)
   }
   
 }

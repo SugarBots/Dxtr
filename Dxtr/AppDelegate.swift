@@ -22,8 +22,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // Override point for customization after application launch.
     let settings = UIUserNotificationSettings(forTypes: .Alert, categories: nil)
     application.registerUserNotificationSettings(settings)
+    application.setStatusBarStyle(.LightContent, animated: true)
+
+    // Start BLE discovery
+    BTDiscovery.sharedInstance
     
-    logger.setup(logLevel: .Verbose, showLogLevel: false, showFileNames: false, showLineNumbers: true, writeToFile: nil)
+    logger.setup(logLevel: .Verbose, showLogLevel: false, showFileNames: true, showLineNumbers: true, writeToFile: nil)
     
     // Setup XCGLogger
     let logPath : NSURL = applicationDocumentsDirectory
@@ -32,8 +36,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     fileLog.setup(logLevel: .Debug, showLogLevel: false, showFileNames: false, showLineNumbers: false, writeToFile: logPath.URLByAppendingPathComponent("raw_data.log"))
     
     fileLog.info("File log of all raw data")
+
+    let nav = window!.rootViewController as! UINavigationController
+    let vc = nav.viewControllers[0] as! MasterViewController
     
-    let vc = window?.rootViewController as ViewController
     vc.managedObjectContext = managedObjectContext!
     DxtrModel.sharedInstance.managedObjectContext = managedObjectContext
     #if SIMULATOR
@@ -41,25 +47,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       // We are running in the simmulator. 
 
       // create fake sensor
-      var ss = Sensor(managedObjectContext: DxtrModel.sharedInstance.managedObjectContext!, timeStamp: START_TIME_OF_SENSOR)
-      DxtrModel.sharedInstance.saveContext()
-      
-      // create 1st reading
-      BGReading(managedObjectContext: DxtrModel.sharedInstance.managedObjectContext!, timeStamp: START_TIME_OF_SENSOR + 300 * 1000 , rawData: 156416)
-      	
-      // create 2nd reading
-      BGReading(managedObjectContext: DxtrModel.sharedInstance.managedObjectContext!, timeStamp: START_TIME_OF_SENSOR + 600 * 1000 , rawData: 156160)
-      
-      // add calibration - 1
-      Calibration(managedObjectContext: DxtrModel.sharedInstance.managedObjectContext!, newBG: 162, timeStamp: START_TIME_OF_SENSOR + 630 * 1000)
-      
-      // add calibration - 2
-      Calibration(managedObjectContext: DxtrModel.sharedInstance.managedObjectContext!, newBG: 160, timeStamp: START_TIME_OF_SENSOR + 630 * 1000)
+
+//      var ss = Sensor(managedObjectContext: DxtrModel.sharedInstance.managedObjectContext!, timeStamp: START_TIME_OF_SENSOR)
+//      DxtrModel.sharedInstance.saveContext()
+//      
+//      // create 1st reading
+//      BGReading(managedObjectContext: DxtrModel.sharedInstance.managedObjectContext!, timeStamp: START_TIME_OF_SENSOR + 300 * 1000 , rawData: 156416)
+//      	
+//      // create 2nd reading
+//      BGReading(managedObjectContext: DxtrModel.sharedInstance.managedObjectContext!, timeStamp: START_TIME_OF_SENSOR + 600 * 1000 , rawData: 156160)
+//      
+//      // add calibration - 1
+//      Calibration(managedObjectContext: DxtrModel.sharedInstance.managedObjectContext!, newBG: 162, timeStamp: START_TIME_OF_SENSOR + 630 * 1000)
+//      
+//      // add calibration - 2
+//      Calibration(managedObjectContext: DxtrModel.sharedInstance.managedObjectContext!, newBG: 160, timeStamp: START_TIME_OF_SENSOR + 630 * 1000)
 
       // Generate transmitter data
       //      var testData = TestRawData()
       //  testData.createTestRawData(managedObjectContext!)
-
       
       #else
       logger.verbose("Running on Device")
@@ -102,7 +108,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   lazy var applicationDocumentsDirectory: NSURL = {
     // The directory the application uses to store the Core Data store file. This code uses a directory named "com.base68.dummyDB" in the application's documents Application Support directory.
     let urls = NSFileManager.defaultManager().URLsForDirectory(.DocumentDirectory, inDomains: .UserDomainMask)
-    return urls[urls.count-1] as NSURL
+    return urls[urls.count-1] as! NSURL
     }()
   
   lazy var managedObjectModel: NSManagedObjectModel = {
@@ -126,7 +132,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       dict[NSLocalizedDescriptionKey] = "Failed to initialize the application's saved data"
       dict[NSLocalizedFailureReasonErrorKey] = failureReason
       dict[NSUnderlyingErrorKey] = error
-      error = NSError(domain: "YOUR_ERROR_DOMAIN", code: 9999, userInfo: dict)
+      error = NSError(domain: "YOUR_ERROR_DOMAIN", code: 9999, userInfo: dict as [NSObject : AnyObject])
       // Replace this with code to handle the error appropriately.
       // abort() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
       NSLog("Unresolved error \(error), \(error!.userInfo)")
@@ -141,7 +147,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       dict[NSLocalizedDescriptionKey] = "Failed to initialize the application's saved data"
       dict[NSLocalizedFailureReasonErrorKey] = failureReason
       dict[NSUnderlyingErrorKey] = error
-      error = NSError(domain: "YOUR_ERROR_DOMAIN", code: 9999, userInfo: dict)
+      error = NSError(domain: "YOUR_ERROR_DOMAIN", code: 9999, userInfo: dict as [NSObject : AnyObject])
       // Replace this with code to handle the error appropriately.
       // abort() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
       NSLog("Unresolved error \(error), \(error!.userInfo)")
